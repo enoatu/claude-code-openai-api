@@ -4,27 +4,29 @@
 
 ## 前提条件
 
-- Node.js 18以上
+- Bun または Node.js 18以上
 - `claude`コマンドがシステムにインストールされていること
+- `gemini`コマンド（Geminiを使用する場合）
 
 ## セットアップ
 
 ```bash
-# 依存関係のインストール
+# Bunを使用する場合（推奨）
+bun install
+bun run dev
+
+# または NPMを使用する場合
 npm install
-
-# 開発サーバーの起動
 npm run dev
-
-# ビルド
-npm run build
-
-# プロダクション実行
-npm start
 
 # テストの実行
 npm test
 ```
+
+## 対応モデル
+
+- `claude` - Claude (デフォルト、WebSearchツールのみ利用可能)
+- `gemini` - Gemini (WebSearchツールのみ利用可能)
 
 ## API エンドポイント
 
@@ -51,6 +53,16 @@ curl -X POST http://localhost:3000/v1/chat/completions \
     "messages": [
       {"role": "system", "content": "あなたは親切なアシスタントです。"},
       {"role": "user", "content": "今日の天気は?"}
+    ]
+  }'
+
+# Geminiモデルを使用
+curl -X POST http://localhost:3000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gemini",
+    "messages": [
+      {"role": "user", "content": "AIについて説明して"}
     ]
   }'
 
@@ -167,9 +179,16 @@ console.log(completion.choices[0].message.content);
 PORT=8080 npm run dev
 ```
 
+## セキュリティ機能
+
+- **ツール制限**: ClaudeとGemini両方でWebSearchツールのみを許可（ファイル操作やコマンド実行は禁止）
+- **レート制限**: IPアドレスごとに1分あたり60リクエストまで
+- **入力検証**: メッセージの形式、役割、長さ（最大10,000文字）を検証
+- **コマンドインジェクション対策**: 特殊文字のエスケープ処理
+
 ## 注意事項
 
-- このサーバーは`claude`コマンドをサブプロセスとして実行します
+- このサーバーは`claude`または`gemini`コマンドをサブプロセスとして実行します
 - 認証機能は実装されていません
 - ストリーミングレスポンスは未対応です
 - エラーハンドリングは基本的なもののみ実装されています

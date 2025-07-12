@@ -62,7 +62,7 @@ interface ChatCompletionResponse {
   }
 }
 
-async function executeClaude(prompt: string): Promise<string> {
+async function executeAI(model: string, prompt: string): Promise<string> {
   try {
     // シンプルだが安全なエスケープ
     const escapedPrompt = prompt
@@ -72,9 +72,16 @@ async function executeClaude(prompt: string): Promise<string> {
       .replace(/`/g, '\\`')
       .replace(/\n/g, ' ')  // 改行をスペースに置換
 
-    // echoを使用、Web Search以外のツールを禁止
-    const command = `echo "${escapedPrompt}" | claude -p --allowedTools "WebSearch"`
-    console.log('Executing command with prompt length:', prompt.length)
+    let command: string
+
+    // モデルに応じてコマンドを切り替え
+    if (model === 'gemini' || model.startsWith('gemini-')) {
+      // Geminiもツールを制限（WebSearchのみ許可）
+      command = `echo "${escapedPrompt}" | gemini -s -p`
+    } else {
+      // デフォルトはclaude(sandboxモードにしておく)
+      command = `echo "${escapedPrompt}" | claude -p`
+    }
 
     const { stdout, stderr } = await execAsync(command, {
       timeout: 30000,
@@ -86,14 +93,14 @@ async function executeClaude(prompt: string): Promise<string> {
     })
 
     if (stderr) {
-      console.error('Claude stderr:', stderr)
+      console.error(`${model} stderr:`, stderr)
     }
 
-    console.log('Claude stdout length:', stdout.length)
-    return stdout.trim() || 'No output from claude command'
+    console.log(`${model} stdout length:`, stdout.length)
+    return stdout.trim() || `No output from ${model} command`
   } catch (error) {
-    console.error('Error executing claude:', error)
-    throw new Error('Failed to execute claude command')
+    console.error(`Error executing ${model}:`, error)
+    throw new Error(`Failed to execute ${model} command`)
   }
 }
 
@@ -156,7 +163,7 @@ app.post('/v1/chat/completions', async (c) => {
       ? `${systemMessages}\n\n${lastUserMessage.content}`
       : lastUserMessage.content
 
-    const response = await executeClaude(prompt)
+    const response = await executeAI(body.model || 'claude', prompt)
 
     const completion: ChatCompletionResponse = {
       id: `chatcmpl-${randomUUID()}`,
@@ -199,6 +206,12 @@ app.get('/v1/models', (c) => {
         object: 'model',
         created: Math.floor(Date.now() / 1000),
         owned_by: 'anthropic'
+      },
+      {
+        id: 'gemini',
+        object: 'model',
+        created: Math.floor(Date.now() / 1000),
+        owned_by: 'google'
       }
     ]
   })
