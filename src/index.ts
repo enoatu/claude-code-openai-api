@@ -64,18 +64,24 @@ interface ChatCompletionResponse {
 
 async function executeClaude(prompt: string): Promise<string> {
   try {
-    const escapedPrompt = prompt.replace(/"/g, '\\"').replace(/\$/g, '\\$').replace(/`/g, '\\`')
+    // シンプルだが安全なエスケープ
+    const escapedPrompt = prompt
+      .replace(/\\/g, '\\\\')
+      .replace(/"/g, '\\"')
+      .replace(/\$/g, '\\$')
+      .replace(/`/g, '\\`')
+      .replace(/\n/g, ' ')  // 改行をスペースに置換
 
-    // 標準入力を閉じて、非インタラクティブモードを強制
-    const command = `echo "${escapedPrompt}" | claude -p`
-    console.log('Executing command:', command)
+    // echoを使用、Web Search以外のツールを禁止
+    const command = `echo "${escapedPrompt}" | claude -p --allowedTools "WebSearch"`
+    console.log('Executing command with prompt length:', prompt.length)
 
     const { stdout, stderr } = await execAsync(command, {
       timeout: 30000,
       env: {
         ...process.env,
         TERM: 'dumb',
-        CI: 'true' // 一部のCLIツールはこれで非インタラクティブモードになる
+        CI: 'true'
       }
     })
 
@@ -83,7 +89,7 @@ async function executeClaude(prompt: string): Promise<string> {
       console.error('Claude stderr:', stderr)
     }
 
-    console.log('Claude stdout:', stdout)
+    console.log('Claude stdout length:', stdout.length)
     return stdout.trim() || 'No output from claude command'
   } catch (error) {
     console.error('Error executing claude:', error)
