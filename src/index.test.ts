@@ -2,16 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import app from './index'
 
 vi.mock('child_process', () => ({
-  exec: vi.fn((cmd, callback) => {
-    if (cmd.includes('今日の天気は')) {
-      callback(null, { stdout: '今日は晴れです。気温は25度で過ごしやすい天気です。', stderr: '' })
-    } else if (cmd.includes('Hello')) {
-      callback(null, { stdout: 'Hello! How can I help you today?', stderr: '' })
-    } else {
-      callback(null, { stdout: 'Test response', stderr: '' })
-    }
-  }),
-  promisify: (fn: any) => fn
+  exec: vi.fn()
+}))
+
+vi.mock('util', () => ({
+  promisify: vi.fn(() => {
+    return vi.fn((cmd: string) => {
+      if (cmd.includes('今日の天気は')) {
+        return Promise.resolve({ stdout: '今日は晴れです。気温は25度で過ごしやすい天気です。', stderr: '' })
+      } else if (cmd.includes('Hello')) {
+        return Promise.resolve({ stdout: 'Hello! How can I help you today?', stderr: '' })
+      } else {
+        return Promise.resolve({ stdout: 'Test response', stderr: '' })
+      }
+    })
+  })
 }))
 
 describe('OpenAI API Compatibility', () => {
