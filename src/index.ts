@@ -30,6 +30,11 @@ function checkRateLimit(ip: string): boolean {
   record.count++
   return true
 }
+// 以下を除外する
+// Checking for sandbox image: us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.1.10\nSandbox image us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.1.10 found locally.\n
+function removeGeminiSandboxCheck(stdout: string): string {
+  return stdout.replace(/Checking for sandbox image:.*\nSandbox image .* found locally.\n/, '')
+}
 
 interface ChatCompletionRequest {
   model: string
@@ -77,6 +82,7 @@ async function executeAI(model: string, prompt: string): Promise<string> {
     // モデルに応じてコマンドを切り替え
     if (model === 'gemini' || model.startsWith('gemini-')) {
       // Geminiもツールを制限（WebSearchのみ許可）
+      // https://generativelanguage.googleapis.com/v1beta/openai を使えばいいだけではある
       command = `echo "${escapedPrompt}" | gemini -s -p`
     } else {
       // デフォルトはclaude(sandboxモードにしておく)
@@ -97,6 +103,9 @@ async function executeAI(model: string, prompt: string): Promise<string> {
     }
 
     console.log(`${model} stdout length:`, stdout.length)
+    if (model === 'gemini' || model.startsWith('gemini-')) {
+      return removeGeminiSandboxCheck(stdout.trim())
+    }
     return stdout.trim() || `No output from ${model} command`
   } catch (error) {
     console.error(`Error executing ${model}:`, error)
